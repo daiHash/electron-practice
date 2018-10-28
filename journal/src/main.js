@@ -34,7 +34,14 @@ function createWindow () {
           click() {
             openDir();
           }
-        }
+        },
+        {
+          label: 'Save Folder',
+          accelerator: 'CommandOrControl+S',
+          click() {
+            mainWindow.webContents.send('save-file');
+          }
+        },
       ]
     },
 

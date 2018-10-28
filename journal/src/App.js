@@ -14,6 +14,7 @@ const { ipcRenderer } = window.require('electron');
 class App extends Component {
   state = {
     loadedFile: '',
+    activeIndex: 0,
     directory: settings.get('directory') || null,
     filesData: []
   }
@@ -27,11 +28,8 @@ class App extends Component {
       this.loadAndReadFiles(directory);
     }
 
-    ipcRenderer.on('new-file', (event, fileContent) => {
-      this.setState({
-        loadedFile: fileContent
-      });
-      
+    ipcRenderer.on('save-file', (event) => {
+      this.saveFile();
     });
 
     ipcRenderer.on('new-dir', (event, directory) => {
@@ -47,25 +45,78 @@ class App extends Component {
   loadAndReadFiles = (directory) => {
     fs.readdir(directory, (err, files) => {
       const filteredFiles = files.filter(file => file.includes('.md'));    
-      const filesData = filteredFiles.map(file => ({
-        path: `${directory}/${file}`
-      }));
+      const filesData = filteredFiles.map(file => {
+        const date = file.substr(
+          file.indexOf('_') * 1,
+          file.indexOf('.') - file.indexOf('_') - 1,
+        )
+
+        return {
+          date,
+          path: `${directory}/${file}`,
+          title: file.substr(0, file.indexOf('_'))
+        }
+      });
       
       this.setState({
         filesData
-      })
+      }, () => {
+        this.loadFile(0);
+      });
     })
   }
 
+  changeFile = index => () => {
+    const { activeIndex } = this.state;
+    if (index !== activeIndex) {
+      this.saveFile();
+      this.loadFile(index);
+    }
+  }
+
+  loadFile = index => {
+    const { filesData } = this.state;
+    const content = fs.readFileSync(filesData[index].path).toString();
+
+    this.setState({
+      loadedFile: content,
+      activeIndex: index
+    });
+  }
+
+  saveFile = () => {
+    const { activeIndex, loadedFile, filesData } = this.state;
+    fs.writeFile(filesData[activeIndex].path, loadedFile, err => {
+      if (err) {
+        return console.error(err);
+      } else {
+        console.log('saved!');
+      }
+    });
+  }
+
   render() {
+    const { activeIndex, directory, filesData, loadedFile } = this.state;
+
     return (
-      <div className="App">
+      <AppWrapper>
         <Header>Journal</Header>
-        {this.state.directory ? (
+        {directory ? (
           <Split>
-            <div>
-              { this.state.filesData.map(file => <h1>{ file.path }</h1>) }
-            </div>
+            <FilesWindow>
+              {filesData.map((file, index) => (
+                <FileButton 
+                  active={activeIndex === index}
+                  onClick={this.changeFile(index)}>
+                  <p className="title">
+                    { file.title }
+                  </p>
+                  <p className="date">
+                    { file.date }
+                  </p>
+                </FileButton>
+              ))}
+            </FilesWindow>
             <CodeWindow>
               <AceEditor 
                 mode="markdown"
@@ -76,13 +127,13 @@ class App extends Component {
                   })
                 }}
                 name="markdown_editor"
-                value={this.state.loadedFile}
+                value={loadedFile}
                 />
             </CodeWindow>
 
             <RenderedWindow>
               <Markdown>
-                { this.state.loadedFile }
+                { loadedFile }
               </Markdown>
             </RenderedWindow>
           </Split>
@@ -91,7 +142,7 @@ class App extends Component {
             <h1>Press Cmd or Ctrl + O to open directory.</h1>
           </LoadingMessage>
         )}
-      </div>
+      </AppWrapper>
     );
   }
 }
@@ -114,9 +165,32 @@ const Header = styled.div`
   -webkit-app-region: drag;
 `;
 
+const AppWrapper = styled.div`
+  margin-top: 23px;
+`;
+
 const Split = styled.div`
   display: flex;
   height: 100vh;
+`;
+
+const FilesWindow = styled.div`
+  position: relative;
+  background-color: #140f1d;
+  border-right: 1px solid #302b3a;
+  height: 100%;
+  width: 20%;
+  padding-top: 2.5rem;
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    pointer-events: none;
+    box-shadow: -10px 0 20px rgba(0, 0, 0, .3) inset;
+  }
 `;
 
 const LoadingMessage = styled.div`
@@ -162,5 +236,41 @@ const RenderedWindow = styled.div`
 
   a {
     color: #e54b4b;
+  }
+`;
+
+const FileButton = styled.button`
+  padding: 10px;
+  text-align: left;
+  width: 100%;
+  background-color: #191324;
+  opacity: .4;
+  color: #fff;
+  border: none;
+  border-bottom: 1px solid #302b3a;
+  transition: all .3s ease;
+  &:focus {
+    outline: 0;
+  }
+  &:hover {
+    opacity: 1;
+    border-left: 4px solid #82d8d8;
+    cursor: pointer;
+  }
+  ${({active}) => 
+    active &&
+    `
+    opacity: 1;
+    border-left: 4px solid #82d8d8;
+    ` 
+  }
+  .title {
+    font-weight: bold;
+    font-size: .9rem;
+    margin: 0 0 5px;
+  }
+
+  .date {
+    margin: 0;
   }
 `;
