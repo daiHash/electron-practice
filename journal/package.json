@@ -4,6 +4,8 @@
   "private": true,
   "dependencies": {
     "electron": "^3.0.6",
+    "electron-react-devtools": "^0.5.3",
+    "electron-settings": "^3.2.0",
     "markdown-to-jsx": "^6.8.3",
     "nodemon": "^1.18.5",
     "react": "^16.6.0",
