@@ -21,15 +21,19 @@ function createWindow () {
     {
       label: 'File',
       submenu: [
+        // {
+        //   label: 'Open File',
+        //   accelerator: 'CommandOrControl+O',
+        //   click() {
+        //     openFile();
+        //   }
+        // },
         {
-          label: 'Open File',
+          label: 'Open Folder',
           accelerator: 'CommandOrControl+O',
           click() {
-            openFile();
+            openDir();
           }
-        },
-        {
-          label: 'Open Folder'
         }
       ]
     },
@@ -190,4 +194,18 @@ function openFile() {
   // Send file content to the renderer.
   mainWindow.webContents.send('new-file', fileContent);
 
+}
+
+function openDir() {
+  const directory = dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+  });
+
+  // If there is any directory
+  if (!directory) return;
+  
+  const dir = directory[0];
+  fs.readdir(dir, (err, files) => {    
+    mainWindow.webContents.send('new-dir', dir);
+  })
 }

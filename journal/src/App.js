@@ -7,15 +7,25 @@ import 'brace/mode/markdown';
 import 'brace/theme/dracula';
 import './App.css';
 
+const settings = window.require('electron-settings');
+const fs = window.require('fs');
 const { ipcRenderer } = window.require('electron');
 
 class App extends Component {
   state = {
-    loadedFile: ''
+    loadedFile: '',
+    directory: settings.get('directory') || null,
+    filesData: []
   }
 
   constructor() {
     super();
+
+    // On load
+    const directory = settings.get('directory');
+    if (directory) {
+      this.loadAndReadFiles(directory);
+    }
 
     ipcRenderer.on('new-file', (event, fileContent) => {
       this.setState({
@@ -23,34 +33,64 @@ class App extends Component {
       });
       
     });
+
+    ipcRenderer.on('new-dir', (event, directory) => {
+      this.setState({
+        directory
+      });
+
+      settings.set('directory', directory)
+      this.loadAndReadFiles(directory);
+    });
+  }
+
+  loadAndReadFiles = (directory) => {
+    fs.readdir(directory, (err, files) => {
+      const filteredFiles = files.filter(file => file.includes('.md'));    
+      const filesData = filteredFiles.map(file => ({
+        path: `${directory}/${file}`
+      }));
+      
+      this.setState({
+        filesData
+      })
+    })
   }
 
   render() {
     return (
       <div className="App">
         <Header>Journal</Header>
+        {this.state.directory ? (
+          <Split>
+            <div>
+              { this.state.filesData.map(file => <h1>{ file.path }</h1>) }
+            </div>
+            <CodeWindow>
+              <AceEditor 
+                mode="markdown"
+                theme="dracula"
+                onChange={newContent => {
+                  this.setState({
+                    loadedFile: newContent
+                  })
+                }}
+                name="markdown_editor"
+                value={this.state.loadedFile}
+                />
+            </CodeWindow>
 
-        <Split>
-          <CodeWindow>
-            <AceEditor 
-              mode="markdown"
-              theme="dracula"
-              onChange={newContent => {
-                this.setState({
-                  loadedFile: newContent
-                })
-              }}
-              name="markdown_editor"
-              value={this.state.loadedFile}
-              />
-          </CodeWindow>
-
-          <RenderedWindow>
-            <Markdown>
-              { this.state.loadedFile }
-            </Markdown>
-          </RenderedWindow>
-        </Split>
+            <RenderedWindow>
+              <Markdown>
+                { this.state.loadedFile }
+              </Markdown>
+            </RenderedWindow>
+          </Split>
+        ):(
+          <LoadingMessage>
+            <h1>Press Cmd or Ctrl + O to open directory.</h1>
+          </LoadingMessage>
+        )}
       </div>
     );
   }
@@ -76,6 +116,15 @@ const Header = styled.div`
 
 const Split = styled.div`
   display: flex;
+  height: 100vh;
+`;
+
+const LoadingMessage = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  background-color: #191324;
   height: 100vh;
 `;
 
