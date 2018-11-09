@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import Markdown from "markdown-to-jsx";
 import AceEditor from "react-ace";
 import styled from 'styled-components';
+import dateFns from "date-fns";
 import brace from "brace";
 import 'brace/mode/markdown';
 import 'brace/theme/dracula';
@@ -16,7 +17,9 @@ class App extends Component {
     loadedFile: '',
     activeIndex: 0,
     directory: settings.get('directory') || null,
-    filesData: []
+    filesData: [], 
+    newEntry: false,
+    newEntryName: ''
   }
 
   constructor() {
@@ -58,6 +61,14 @@ class App extends Component {
         }
       });
       
+      filesData.sort((a, b) => {
+        const aDate = new Date(a.date);
+        const bDate = new Date(b.date);
+        const aSec = aDate.getTime();
+        const bSec = bDate.getTime();
+        return bSec - aSec;
+      });
+
       this.setState({
         filesData
       }, () => {
@@ -95,8 +106,31 @@ class App extends Component {
     });
   }
 
+  newFile = (e) => {
+    e.preventDefault();
+    const { newEntryName, directory, filesData } = this.state;
+    const fileDate = dateFns.format(new Date(), 'MM-DD-YYYY');
+    const filePath = `${directory}/${newEntryName}_${fileDate}.md`;
+    fs.writeFile(filePath, '', err => {
+      if (err) return console.log(err);
+
+      filesData.unshift({
+        path: filePath,
+        date: fileDate,
+        title: newEntryName
+      });
+
+      this.setState({
+        newEntry: false,
+        newEntryName: '',
+        loadedFile: '',
+        filesData
+      })
+    })
+  }
+
   render() {
-    const { activeIndex, directory, filesData, loadedFile } = this.state;
+    const { activeIndex, directory, filesData, loadedFile, newEntry, newEntryName } = this.state;
 
     return (
       <AppWrapper>
@@ -104,6 +138,18 @@ class App extends Component {
         {directory ? (
           <Split>
             <FilesWindow>
+              <Button onClick= {() => { this.setState({newEntry: !newEntry}) }}>
+                + New File
+              </Button>
+              {
+                newEntry &&
+                  <form onSubmit={this.newFile}>
+                    <input value={newEntryName} onChange={e => {
+                      this.setState({newEntryName: e.target.value})
+                    }} autoFocus type="text"/>
+                  </form>
+              }
+
               {filesData.map((file, index) => (
                 <FileButton 
                   active={activeIndex === index}
@@ -112,7 +158,7 @@ class App extends Component {
                     { file.title }
                   </p>
                   <p className="date">
-                    { file.date }
+                    { formatDate(file.date) }
                   </p>
                 </FileButton>
               ))}
@@ -274,3 +320,22 @@ const FileButton = styled.button`
     margin: 0;
   }
 `;
+
+const Button = styled.div`
+  display: block;
+  background: transparent;
+  color: #fff;
+  border: 1px solid #82d8d8;
+  border-radius: 4px;
+  margin: 1rem auto;
+  transition: .3s ease all;
+  padding: 5px 10px;
+  &:hover {
+    background: #82d8d8;
+    color: #191324;
+  }
+`;
+
+const formatDate = date => {
+  dateFns.format(new Date(date), 'MMMM Do YYYY');
+}
