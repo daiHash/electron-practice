@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "date-fns": "^1.29.0",
-    "electron": "^7.2.4",
+    "electron": "^15.5.5",
     "electron-react-devtools": "^0.5.3",
     "electron-settings": "^3.2.0",
     "markdown-to-jsx": "^6.8.3",
